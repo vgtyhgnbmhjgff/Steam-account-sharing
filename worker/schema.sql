@@ -1,4 +1,4 @@
--- 星慕畅玩 · D1 数据库结构（steam-share）
+﻿-- Steam 账号共享 · D1 数据库结构（steam-share）
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT NOT NULL,

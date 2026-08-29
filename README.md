@@ -1,4 +1,6 @@
-# 星慕畅玩 · Steam 账号共享站
+﻿﻿# Steam 账号共享站
+
+> 站名待定：正式命名后请全局搜索替换「Steam 账号共享」为你自定义的站名。
 
 公益 Steam 离线账号分享站（极简重做版）。前端纯 vanilla HTML/CSS/JS，后端跑在 Cloudflare Workers 上，数据存 D1 + KV，邮箱验证码走 Resend。
 
@@ -78,7 +80,7 @@ SESSION_TTL_DAYS = "30"
 
 ```bash
 wrangler secret put RESEND_API_KEY   # 粘贴 Resend 的 API Key
-wrangler secret put EMAIL_FROM       # 发件人，如：星慕畅玩 <no-reply@你的域名>
+wrangler secret put EMAIL_FROM       # 发件人，如：Steam 账号共享 <no-reply@你的域名>
 ```
 
 > Resend 免费版需先在 Resend 后台验证你的发信域名（或直接用其测试域名 onboarding@resend.dev）。

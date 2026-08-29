@@ -1,5 +1,5 @@
-// ============================================================
-// 星慕畅玩 · Cloudflare Worker 后端
+﻿// ============================================================
+// Steam 账号共享 · Cloudflare Worker 后端
 // 技术栈：Cloudflare Workers + D1（主数据）+ KV（验证码/会话）+ Resend（邮件）
 //
 // 账号体系：无密码。邮箱验证码注册 / 邮箱验证码登录
@@ -77,7 +77,7 @@ function getConfig(env) {
 // ===== 邮件发送（Resend）=====
 async function sendEmail(env, to, subject, html) {
   if (!env.RESEND_API_KEY) return { ok: false, error: '邮件服务未配置：请设置 RESEND_API_KEY' };
-  const from = env.EMAIL_FROM || '星慕畅玩 <no-reply@steam-share.workers.dev>';
+  const from = env.EMAIL_FROM || 'Steam 账号共享 <no-reply@steam-share.workers.dev>';
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -217,9 +217,9 @@ async function apiSendCode(env, request) {
   await saveCode(env, email, mode, code, conf.codeTtl);
   await env.KV.put(`rl:${email}`, '1', { expirationTtl: conf.rateLimit });
 
-  const subject = mode === 'register' ? '【星慕畅玩】注册验证码' : '【星慕畅玩】登录验证码';
+  const subject = mode === 'register' ? '【Steam 账号共享】注册验证码' : '【Steam 账号共享】登录验证码';
   const html = `<div style="font-family:sans-serif;padding:20px">` +
-    `<h2>星慕畅玩</h2><p>你的验证码是：</p>` +
+    `<h2>Steam 账号共享</h2><p>你的验证码是：</p>` +
     `<p style="font-size:28px;font-weight:bold;letter-spacing:6px">${code}</p>` +
     `<p style="color:#999;font-size:13px">5 分钟内有效，请勿泄露给他人。</p></div>`;
   const r = await sendEmail(env, email, subject, html);

@@ -1,4 +1,4 @@
-name = "steam-share"
+﻿name = "steam-share"
 main = "src/index.js"
 compatibility_date = "2024-11-01"
 
@@ -28,5 +28,5 @@ SESSION_TTL_DAYS = "30"
 
 # ===== 敏感信息用 wrangler secret 设置，不要写在这里 =====
 # RESEND_API_KEY  —— Resend 发信 API Key
-# EMAIL_FROM      —— 发件人地址，如 "星慕畅玩 <no-reply@steam-share.workers.dev>"
+# EMAIL_FROM      —— 发件人地址，如 "Steam 账号共享 <no-reply@steam-share.workers.dev>"
 # TURNSTILE_SECRET—— Cloudflare Turnstile 站点密钥（后续接入时由你提供）
