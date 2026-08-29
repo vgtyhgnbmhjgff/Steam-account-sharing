@@ -8,14 +8,14 @@ directory = "../public"
 
 # D1 数据库（主数据：用户/游戏/账号/提交/配额）
 [[d1_databases]]
-binding = "DB"
+binding = "D1"
 database_name = "steam-share-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "aedfbd2f-f9e8-4ff7-8af2-483d8b83ac8c"
 
 # KV 命名空间（临时数据：邮箱验证码、登录会话）
 [[kv_namespaces]]
 binding = "KV"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "cb61c5da94ab4ccaaa1de5490acedec1"
 
 # ===== 可配置项（在文件里直接改）=====
 [vars]

@@ -132,9 +132,9 @@ async function destroySession(env, request) {
 async function ensureAdmin(env) {
   const email = env.ADMIN_EMAIL;
   if (!email) return;
-  const exist = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+  const exist = await env.D1.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
   if (exist) return;
-  await env.DB.prepare('INSERT INTO users (username, email, is_admin, is_vip, created_at) VALUES (?, ?, 1, 1, ?)')
+  await env.D1.prepare('INSERT INTO users (username, email, is_admin, is_vip, created_at) VALUES (?, ?, 1, 1, ?)')
     .bind('admin', email, now()).run();
 }
 
@@ -178,10 +178,10 @@ async function handle(request, env) {
 // ===================== 公开接口 =====================
 
 async function apiGames(env) {
-  const rows = await env.DB.prepare('SELECT * FROM games ORDER BY sort DESC, id ASC').all();
+  const rows = await env.D1.prepare('SELECT * FROM games ORDER BY sort DESC, id ASC').all();
   const games = [];
   for (const g of rows.results) {
-    const c = await env.DB.prepare('SELECT COUNT(*) c FROM game_accounts WHERE game_id = ?').bind(g.id).first();
+    const c = await env.D1.prepare('SELECT COUNT(*) c FROM game_accounts WHERE game_id = ?').bind(g.id).first();
     games.push({
       id: g.id,
       title: g.title,
@@ -202,7 +202,7 @@ async function apiSendCode(env, request) {
 
   // 注册模式校验邮箱未被占用
   if (mode === 'register') {
-    const dup = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+    const dup = await env.D1.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
     if (dup) return json({ error: '该邮箱已注册，请直接登录' });
   }
 
@@ -233,18 +233,18 @@ async function apiRegister(env, request) {
   if (!code) return json({ error: '请输入验证码' });
   if (!username || String(username).trim().length < 2) return json({ error: '用户名至少 2 个字符' });
 
-  const dup = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+  const dup = await env.D1.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
   if (dup) return json({ error: '该邮箱已注册，请直接登录' });
-  const unameDup = await env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(String(username).trim()).first();
+  const unameDup = await env.D1.prepare('SELECT id FROM users WHERE username = ?').bind(String(username).trim()).first();
   if (unameDup) return json({ error: '用户名已被占用' });
 
   const ok = await verifyCode(env, email, 'register', String(code));
   if (!ok) return json({ error: '验证码错误或已过期' });
 
-  await env.DB.prepare('INSERT INTO users (username, email, created_at) VALUES (?, ?, ?)')
+  await env.D1.prepare('INSERT INTO users (username, email, created_at) VALUES (?, ?, ?)')
     .bind(String(username).trim(), email, now()).run();
 
-  const u = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
+  const u = await env.D1.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
   const token = await createSession(env, u.id, getConfig(env).sessionTtl);
   return json({ success: true, token, user: userJson(u) });
 }
@@ -257,12 +257,12 @@ async function apiLogin(env, request) {
   const ok = await verifyCode(env, email, 'login', String(code));
   if (!ok) return json({ error: '验证码错误或已过期' });
 
-  let u = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
+  let u = await env.D1.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
   if (!u) {
     // 自动创建账号
-    await env.DB.prepare('INSERT INTO users (username, email, created_at) VALUES (?, ?, ?)')
+    await env.D1.prepare('INSERT INTO users (username, email, created_at) VALUES (?, ?, ?)')
       .bind(genUsername(email), email, now()).run();
-    u = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
+    u = await env.D1.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
   }
 
   const token = await createSession(env, u.id, getConfig(env).sessionTtl);
@@ -283,14 +283,14 @@ function userJson(u) {
 async function getQuota(env, uid) {
   const conf = getConfig(env);
   const date = bjDate();
-  const row = await env.DB.prepare('SELECT used FROM quotas WHERE user_id = ? AND date = ?').bind(uid, date).first();
+  const row = await env.D1.prepare('SELECT used FROM quotas WHERE user_id = ? AND date = ?').bind(uid, date).first();
   const used = row ? row.used : 0;
   return { total: conf.dailyQuota, used, remaining: Math.max(0, conf.dailyQuota - used) };
 }
 
 async function apiMe(env, uid) {
   if (!uid) return json({ error: '未登录' }, 401);
-  const u = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(uid).first();
+  const u = await env.D1.prepare('SELECT * FROM users WHERE id = ?').bind(uid).first();
   if (!u) return json({ error: '用户不存在' }, 401);
   const quota = await getQuota(env, uid);
   return json({ user: userJson(u), quota });
@@ -300,18 +300,18 @@ async function apiAccount(env, uid, request) {
   if (!uid) return json({ error: '请先登录' }, 401);
   const { gameId } = await readBody(request);
 
-  const game = await env.DB.prepare('SELECT * FROM games WHERE id = ?').bind(gameId).first();
+  const game = await env.D1.prepare('SELECT * FROM games WHERE id = ?').bind(gameId).first();
   if (!game) return json({ error: '游戏不存在' });
 
   const quota = await getQuota(env, uid);
   if (quota.remaining <= 0) return json({ error: '今日领取次数已用完，明天再来' });
 
-  const acc = await env.DB.prepare('SELECT * FROM game_accounts WHERE game_id = ? ORDER BY RANDOM() LIMIT 1').bind(gameId).first();
+  const acc = await env.D1.prepare('SELECT * FROM game_accounts WHERE game_id = ? ORDER BY RANDOM() LIMIT 1').bind(gameId).first();
   if (!acc) return json({ error: '该游戏暂无可用账号' });
 
   // 扣 1 次额度
   const date = bjDate();
-  await env.DB.prepare('INSERT INTO quotas (user_id, date, used) VALUES (?, ?, 1) ON CONFLICT(user_id, date) DO UPDATE SET used = used + 1')
+  await env.D1.prepare('INSERT INTO quotas (user_id, date, used) VALUES (?, ?, 1) ON CONFLICT(user_id, date) DO UPDATE SET used = used + 1')
     .bind(uid, date).run();
 
   const newQuota = await getQuota(env, uid);
@@ -330,7 +330,7 @@ async function apiSubmit(env, uid, request) {
   if (!account || !String(account).trim()) return json({ error: '请填写账号' });
   if (!password) return json({ error: '请填写密码' });
 
-  await env.DB.prepare('INSERT INTO submissions (user_id, title, category, account, password, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+  await env.D1.prepare('INSERT INTO submissions (user_id, title, category, account, password, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
     .bind(uid, String(title).trim(), (category || '其他').trim(), String(account).trim(), String(password), 'pending', now()).run();
   return json({ success: true });
 }
@@ -339,43 +339,43 @@ async function apiSubmit(env, uid, request) {
 
 async function isAdmin(env, uid) {
   if (!uid) return false;
-  const u = await env.DB.prepare('SELECT is_admin FROM users WHERE id = ?').bind(uid).first();
+  const u = await env.D1.prepare('SELECT is_admin FROM users WHERE id = ?').bind(uid).first();
   return !!(u && u.is_admin);
 }
 
 async function apiAdminData(env, uid) {
   if (!(await isAdmin(env, uid))) return json({ error: '无权限' }, 403);
 
-  const games = await env.DB.prepare('SELECT * FROM games ORDER BY id DESC').all();
+  const games = await env.D1.prepare('SELECT * FROM games ORDER BY id DESC').all();
   const gamesOut = [];
   for (const g of games.results) {
-    const acs = await env.DB.prepare('SELECT * FROM game_accounts WHERE game_id = ? ORDER BY id ASC').bind(g.id).all();
+    const acs = await env.D1.prepare('SELECT * FROM game_accounts WHERE game_id = ? ORDER BY id ASC').bind(g.id).all();
     gamesOut.push({ ...g, accounts: acs.results });
   }
-  const submissions = await env.DB.prepare('SELECT * FROM submissions ORDER BY id DESC').all();
-  const userCount = await env.DB.prepare('SELECT COUNT(*) c FROM users').first();
+  const submissions = await env.D1.prepare('SELECT * FROM submissions ORDER BY id DESC').all();
+  const userCount = await env.D1.prepare('SELECT COUNT(*) c FROM users').first();
   return json({ games: gamesOut, submissions: submissions.results, userCount: userCount ? userCount.c : 0 });
 }
 
 async function apiAdminReview(env, uid, request) {
   if (!(await isAdmin(env, uid))) return json({ error: '无权限' }, 403);
   const { id, approved } = await readBody(request);
-  const sub = await env.DB.prepare('SELECT * FROM submissions WHERE id = ?').bind(id).first();
+  const sub = await env.D1.prepare('SELECT * FROM submissions WHERE id = ?').bind(id).first();
   if (!sub) return json({ error: '提交记录不存在' });
   if (sub.status !== 'pending') return json({ error: '该提交已处理' });
 
   if (approved) {
-    await env.DB.prepare('INSERT INTO games (title, category, created_at) VALUES (?, ?, ?)')
+    await env.D1.prepare('INSERT INTO games (title, category, created_at) VALUES (?, ?, ?)')
       .bind(sub.title, sub.category, now()).run();
-    const g = await env.DB.prepare('SELECT id FROM games ORDER BY id DESC LIMIT 1').first();
+    const g = await env.D1.prepare('SELECT id FROM games ORDER BY id DESC LIMIT 1').first();
     if (g) {
-      await env.DB.prepare('INSERT INTO game_accounts (game_id, account, password) VALUES (?, ?, ?)')
+      await env.D1.prepare('INSERT INTO game_accounts (game_id, account, password) VALUES (?, ?, ?)')
         .bind(g.id, sub.account, sub.password).run();
     }
-    await env.DB.prepare('UPDATE submissions SET status = ? WHERE id = ?').bind('approved', sub.id).run();
-    await env.DB.prepare('UPDATE users SET is_vip = 1 WHERE id = ?').bind(sub.user_id).run();
+    await env.D1.prepare('UPDATE submissions SET status = ? WHERE id = ?').bind('approved', sub.id).run();
+    await env.D1.prepare('UPDATE users SET is_vip = 1 WHERE id = ?').bind(sub.user_id).run();
   } else {
-    await env.DB.prepare('UPDATE submissions SET status = ? WHERE id = ?').bind('rejected', sub.id).run();
+    await env.D1.prepare('UPDATE submissions SET status = ? WHERE id = ?').bind('rejected', sub.id).run();
   }
   return json({ success: true });
 }
@@ -385,11 +385,11 @@ async function apiAdminGame(env, uid, request) {
   const { id, title, category, cover } = await readBody(request);
   if (!title || !String(title).trim()) return json({ error: '请填写游戏名称' });
   if (id) {
-    await env.DB.prepare('UPDATE games SET title = ?, category = ?, cover = ? WHERE id = ?')
+    await env.D1.prepare('UPDATE games SET title = ?, category = ?, cover = ? WHERE id = ?')
       .bind(String(title).trim(), (category || '其他').trim(), (cover || '').trim(), id).run();
     return json({ success: true, id });
   }
-  await env.DB.prepare('INSERT INTO games (title, category, cover, created_at) VALUES (?, ?, ?, ?)')
+  await env.D1.prepare('INSERT INTO games (title, category, cover, created_at) VALUES (?, ?, ?, ?)')
     .bind(String(title).trim(), (category || '其他').trim(), (cover || '').trim(), now()).run();
   return json({ success: true });
 }
@@ -397,8 +397,8 @@ async function apiAdminGame(env, uid, request) {
 async function apiAdminGameDelete(env, uid, request) {
   if (!(await isAdmin(env, uid))) return json({ error: '无权限' }, 403);
   const { id } = await readBody(request);
-  await env.DB.prepare('DELETE FROM game_accounts WHERE game_id = ?').bind(id).run();
-  await env.DB.prepare('DELETE FROM games WHERE id = ?').bind(id).run();
+  await env.D1.prepare('DELETE FROM game_accounts WHERE game_id = ?').bind(id).run();
+  await env.D1.prepare('DELETE FROM games WHERE id = ?').bind(id).run();
   return json({ success: true });
 }
 
@@ -406,7 +406,7 @@ async function apiAdminAccount(env, uid, request) {
   if (!(await isAdmin(env, uid))) return json({ error: '无权限' }, 403);
   const { gameId, account, password } = await readBody(request);
   if (!gameId || !account || !password) return json({ error: '参数不完整' });
-  await env.DB.prepare('INSERT INTO game_accounts (game_id, account, password) VALUES (?, ?, ?)')
+  await env.D1.prepare('INSERT INTO game_accounts (game_id, account, password) VALUES (?, ?, ?)')
     .bind(gameId, String(account).trim(), String(password)).run();
   return json({ success: true });
 }
@@ -414,6 +414,6 @@ async function apiAdminAccount(env, uid, request) {
 async function apiAdminAccountDelete(env, uid, request) {
   if (!(await isAdmin(env, uid))) return json({ error: '无权限' }, 403);
   const { id } = await readBody(request);
-  await env.DB.prepare('DELETE FROM game_accounts WHERE id = ?').bind(id).run();
+  await env.D1.prepare('DELETE FROM game_accounts WHERE id = ?').bind(id).run();
   return json({ success: true });
 }
