@@ -1,0 +1,32 @@
+name = "steam-share"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# 前端静态资产目录（同 Worker 一起托管，后续写前端时使用）
+[assets]
+directory = "../public"
+
+# D1 数据库（主数据：用户/游戏/账号/提交/配额）
+[[d1_databases]]
+binding = "DB"
+database_name = "steam-share-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# KV 命名空间（临时数据：邮箱验证码、登录会话）
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+# ===== 可配置项（在文件里直接改）=====
+[vars]
+# 管理员邮箱：首次部署会自动创建 is_admin=1 的账号，用该邮箱验证码登录即管理员
+ADMIN_EMAIL = "admin@example.com"
+# 每日免费领取次数（所有用户统一次数，VIP 权益后续再扩展）
+DAILY_QUOTA = "1"
+# 登录会话有效期（天）
+SESSION_TTL_DAYS = "30"
+
+# ===== 敏感信息用 wrangler secret 设置，不要写在这里 =====
+# RESEND_API_KEY  —— Resend 发信 API Key
+# EMAIL_FROM      —— 发件人地址，如 "星慕畅玩 <no-reply@steam-share.workers.dev>"
+# TURNSTILE_SECRET—— Cloudflare Turnstile 站点密钥（后续接入时由你提供）
